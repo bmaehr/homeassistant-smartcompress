@@ -50,7 +50,7 @@ flowchart TD
     end
 
     subgraph Output ["Target"]
-        CLEAN[("Optimized Database\n(Up to 89% smaller, continuous history)")]
+        CLEAN[("Optimized Database\n(70% to 96% smaller, continuous history)")]
     end
 
     DB --> RULE
@@ -125,21 +125,24 @@ graph LR
   - `--details` (`-d`): Generates a per-entity breakdown table.
   - `--analyze` (`-a`): Automatically scans high-volume entities, calculates attribute variance, delta spans, and suggests optimal tolerance rules.
 
----
-
 ## Proven Benchmarks
 
-Tested on a production Home Assistant database (631,112 rows, 865 entities):
+Tested on a production Home Assistant database:
+- **Raw Uncompressed Database:** **6.4 GB** (`home-assistant_v2.db`), **2,114,107 states** across 865 entities.
+- **Attributes Table:** ~1.7 Million shared attribute records.
 
-| Setting | Deleted Rows | Remaining Rows | Savings (%) | Est. Processing Time | Description |
-| :--- | :---: | :---: | :---: | :---: | :--- |
-| **Baseline (Exact Match)** | 0 | 631,112 | 0.00% | 7.0s | Identical state & byte-identical attributes |
-| **Level 1 (Conservative)** | 19,865 | 611,247 | **3.15%** | 11.0s | Telemetry noise, uptime, last_seen, battery jitter |
-| **Level 2 (Moderate)** | 328,866 | 302,246 | **52.11%** | 1m 12s | Analog deadbands (temp, power, volt) + TRV schedule noise |
-| **Level 3 (Aggressive)** | 563,612 | 67,500 | **89.30%** | 1m 59s | Wide deadbands & archival compression |
-| **Configured Tiers** | 19,855 | 611,257 | **3.15%** | 11.0s | Dynamic age-based tiers |
+### Complete Compression Results (From Raw 2.11M State Baseline)
 
-*Simulation throughput: ~33,500 rows/second on standard hardware.*
+| Setting / Run | Deleted Rows | Remaining Rows | Cumulative Savings | Description |
+| :--- | :---: | :---: | :---: | :--- |
+| **Raw Database** | — | 2,114,107 | **0.0%** | Full uncompressed database (6.4 GB on disk) |
+| **Baseline (Exact Match)** | 16,556 | 2,097,551 | **0.78%** | Identical states & exact byte-identical attributes |
+| **Level 1 (Conservative)** | 841,612 | 1,272,495 | **39.81%** | Telemetry noise, uptime/last_seen & battery jitter |
+| **Level 2 (Moderate)** | 1,482,995 | 631,112 | **70.15%** | Inherits L1 + analog deadbands (temp, power, volt) + TRV schedule noise |
+| **Level 3 (Aggressive / Archival)** | 2,046,607 | ~67,500 | **96.81%** | Inherits L2 + wider sensor deadbands & network attributes |
+
+### Maintenance Pass Performance (On Compressed History)
+On subsequent daily maintenance runs, the tool verifies up to **300,000 states/second** on standard hardware, taking just seconds to optimize newly accumulated telemetry.
 
 ---
 
