@@ -1,0 +1,34 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Databases and large test files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+home-assistant_v2.db*
+
+# Home Assistant local registries and storage (contains local hardware IDs, tokens, personal metadata)
+core.device_registry*
+core.entity_registry*
+.storage/
+
+# Local sensitive configuration (passwords, db credentials)
+# Keep *.example.json committed, ignore actual local instance configs
+config.postgres.json
+config.sqlite.json
+secrets.yaml
+
+# Logs and scratch
+*.log
+scratch/
+.idea/
+.vscode/

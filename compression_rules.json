@@ -1,0 +1,493 @@
+{
+  "levels": {
+    "1": {
+      "name": "conservative",
+      "description": "Minimal compression: identical state deduplication, preserves last_seen (latest) and uptime (highest), ignores connectivity noise",
+      "state_strategy": "preserve_endpoints",
+      "default_attribute_rules": {
+        "last_seen": "last",
+        "last_time_reachable": "last",
+        "uptime": "max",
+        "linkquality": "ignore",
+        "battery": { "strategy": "tolerance", "tolerance": 1.0 },
+        "voltage": { "strategy": "tolerance", "tolerance": 15.0 },
+        "temperature": { "strategy": "tolerance", "tolerance": 0.2 },
+        "humidity": { "strategy": "tolerance", "tolerance": 0.5 },
+        "pressure": { "strategy": "tolerance", "tolerance": 0.2 },
+        "power_outage_count": "max"
+      },
+      "unit_attribute_rules": [
+        {
+          "selectors": {
+            "unit": "°C"
+          },
+          "temperature": { "strategy": "tolerance", "tolerance": 0.2 },
+          "current_temperature": { "strategy": "tolerance", "tolerance": 0.2 },
+          "local_temperature": { "strategy": "tolerance", "tolerance": 0.2 }
+        },
+        {
+          "selectors": {
+            "unit": "mV"
+          },
+          "voltage": { "strategy": "tolerance", "tolerance": 15.0 }
+        },
+        {
+          "selectors": {
+            "unit": "%"
+          },
+          "state_tolerance": 0.5
+        },
+        {
+          "selectors": {
+            "unit": "hPa"
+          },
+          "state_tolerance": 0.2
+        },
+        {
+          "selectors": {
+            "unit": "mbar"
+          },
+          "state_tolerance": 0.2
+        },
+        {
+          "selectors": {
+            "unit": "m3"
+          },
+          "state_tolerance": 0.001
+        },
+        {
+          "selectors": {
+            "unit": "m³"
+          },
+          "state_tolerance": 0.001
+        }
+      ],
+      "device_attribute_rules": [
+        {
+          "selectors": {
+            "device_class": "battery"
+          },
+          "state_tolerance": 1.0
+        },
+        {
+          "selectors": {
+            "device_class": "humidity"
+          },
+          "state_tolerance": 0.5
+        },
+        {
+          "selectors": {
+            "device_class": "atmospheric_pressure"
+          },
+          "state_tolerance": 0.2
+        },
+        {
+          "selectors": {
+            "device_class": "pressure"
+          },
+          "state_tolerance": 0.2
+        },
+        {
+          "selectors": {
+            "model": "TRVZB"
+          },
+          "voltage": { "strategy": "tolerance", "tolerance": 15.0 },
+          "current_temperature": { "strategy": "tolerance", "tolerance": 0.2 },
+          "local_temperature": { "strategy": "tolerance", "tolerance": 0.2 }
+        },
+        {
+          "selectors": {
+            "model": "368308_2010"
+          },
+          "voltage": { "strategy": "tolerance", "tolerance": 15.0 },
+          "current_temperature": { "strategy": "tolerance", "tolerance": 0.2 },
+          "local_temperature": { "strategy": "tolerance", "tolerance": 0.2 }
+        },
+        {
+          "selectors": {
+            "entity": "*_schedule_*"
+          },
+          "local_temperature": "ignore"
+        }
+      ]
+    },
+    "2": {
+      "inherits": "1",
+      "name": "moderate",
+      "description": "Balanced compression: inherits level 1, adds telemetry filtering and small sensor tolerances",
+      "state_strategy": "first_only",
+      "default_attribute_rules": {
+        "signal_strength": "ignore",
+        "voltage": { "strategy": "tolerance", "tolerance": 20.0 },
+        "humidity": { "strategy": "tolerance", "tolerance": 1.0 },
+        "pressure": { "strategy": "tolerance", "tolerance": 0.5 }
+      },
+      "unit_attribute_rules": [
+        {
+          "selectors": {
+            "unit": "°C"
+          },
+          "state_tolerance": 0.1,
+          "temperature": { "strategy": "tolerance", "tolerance": 0.2 },
+          "current_temperature": { "strategy": "tolerance", "tolerance": 0.2 },
+          "local_temperature": { "strategy": "tolerance", "tolerance": 0.2 }
+        },
+        {
+          "selectors": {
+            "unit": "%"
+          },
+          "state_tolerance": 1.0
+        },
+        {
+          "selectors": {
+            "unit": "hPa"
+          },
+          "state_tolerance": 0.5
+        },
+        {
+          "selectors": {
+            "unit": "mbar"
+          },
+          "state_tolerance": 0.5
+        },
+        {
+          "selectors": {
+            "unit": "W"
+          },
+          "state_tolerance": 1.0
+        },
+        {
+          "selectors": {
+            "unit": "kWh"
+          },
+          "state_tolerance": 0.01
+        },
+        {
+          "selectors": {
+            "unit": "mV"
+          },
+          "voltage": { "strategy": "tolerance", "tolerance": 20.0 }
+        },
+        {
+          "selectors": {
+            "unit": "KiB/s"
+          },
+          "state_tolerance": 250.0
+        },
+        {
+          "selectors": {
+            "unit": "packets/s"
+          },
+          "state_tolerance": 50.0
+        },
+        {
+          "selectors": {
+            "unit": "B"
+          },
+          "state_tolerance": 10485760
+        },
+        {
+          "selectors": {
+            "unit": "packets"
+          },
+          "state_tolerance": 1000
+        },
+        {
+          "selectors": {
+            "unit": "m3"
+          },
+          "state_tolerance": 0.01
+        },
+        {
+          "selectors": {
+            "unit": "m³"
+          },
+          "state_tolerance": 0.01
+        },
+        {
+          "selectors": {
+            "unit": "kB/s"
+          },
+          "state_tolerance": 250.0
+        },
+        {
+          "selectors": {
+            "unit": "kbit/s"
+          },
+          "state_tolerance": 1000.0
+        },
+        {
+          "selectors": {
+            "unit": "GB"
+          },
+          "state_tolerance": 0.01
+        },
+        {
+          "selectors": {
+            "unit": "lqi"
+          },
+          "state_tolerance": "ignore"
+        }
+      ],
+      "device_attribute_rules": [
+        {
+          "selectors": {
+            "device_class": "battery"
+          },
+          "state_tolerance": 1.0
+        },
+        {
+          "selectors": {
+            "device_class": "humidity"
+          },
+          "state_tolerance": 1.0
+        },
+        {
+          "selectors": {
+            "device_class": "atmospheric_pressure"
+          },
+          "state_tolerance": 0.5
+        },
+        {
+          "selectors": {
+            "device_class": "pressure"
+          },
+          "state_tolerance": 0.5
+        },
+        {
+          "selectors": {
+            "domain": "sensor"
+          },
+          "state_tolerance": 0.05
+        },
+        {
+          "selectors": {
+            "domain": "climate"
+          },
+          "state_tolerance": 0.2
+        },
+        {
+          "selectors": {
+            "domain": "device_tracker"
+          },
+          "altitude": "ignore"
+        },
+        {
+          "selectors": {
+            "model": "TRVZB"
+          },
+          "voltage": { "strategy": "tolerance", "tolerance": 20.0 },
+          "current_temperature": { "strategy": "tolerance", "tolerance": 0.2 },
+          "local_temperature": { "strategy": "tolerance", "tolerance": 0.2 }
+        },
+        {
+          "selectors": {
+            "model": "368308_2010"
+          },
+          "voltage": { "strategy": "tolerance", "tolerance": 20.0 },
+          "current_temperature": { "strategy": "tolerance", "tolerance": 0.2 },
+          "local_temperature": { "strategy": "tolerance", "tolerance": 0.2 }
+        },
+        {
+          "selectors": {
+            "entity": "sensor.time"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "entity": "sensor.date_time"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "entity": "*_last_seen"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "entity": "*_linkquality"
+          },
+          "state_tolerance": "ignore"
+        }
+      ]
+    },
+    "3": {
+      "inherits": "2",
+      "name": "aggressive",
+      "description": "High compression: inherits level 2, wider tolerances for analog sensors, and network attribute stripping",
+      "state_strategy": "first_only",
+      "default_attribute_rules": {
+        "ip_address": "ignore",
+        "mac_address": "ignore",
+        "voltage": { "strategy": "tolerance", "tolerance": 50.0 },
+        "battery": { "strategy": "tolerance", "tolerance": 2.0 },
+        "humidity": { "strategy": "tolerance", "tolerance": 2.0 },
+        "pressure": { "strategy": "tolerance", "tolerance": 2.0 }
+      },
+      "unit_attribute_rules": [
+        {
+          "selectors": {
+            "unit": "°C"
+          },
+          "state_tolerance": 0.3,
+          "temperature": { "strategy": "tolerance", "tolerance": 0.3 },
+          "current_temperature": { "strategy": "tolerance", "tolerance": 0.3 },
+          "local_temperature": { "strategy": "tolerance", "tolerance": 0.3 }
+        },
+        {
+          "selectors": {
+            "unit": "%"
+          },
+          "state_tolerance": 2.0
+        },
+        {
+          "selectors": {
+            "unit": "hPa"
+          },
+          "state_tolerance": 2.0
+        },
+        {
+          "selectors": {
+            "unit": "mbar"
+          },
+          "state_tolerance": 2.0
+        },
+        {
+          "selectors": {
+            "unit": "W"
+          },
+          "state_tolerance": 5.0
+        },
+        {
+          "selectors": {
+            "unit": "kWh"
+          },
+          "state_tolerance": 0.1
+        },
+        {
+          "selectors": {
+            "unit": "mV"
+          },
+          "voltage": { "strategy": "tolerance", "tolerance": 50.0 }
+        },
+        {
+          "selectors": {
+            "unit": "KiB/s"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "unit": "packets/s"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "unit": "B"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "unit": "packets"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "unit": "m3"
+          },
+          "state_tolerance": 0.05
+        },
+        {
+          "selectors": {
+            "unit": "m³"
+          },
+          "state_tolerance": 0.05
+        },
+        {
+          "selectors": {
+            "unit": "kB/s"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "unit": "kbit/s"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "unit": "GB"
+          },
+          "state_tolerance": "ignore"
+        },
+        {
+          "selectors": {
+            "unit": "lqi"
+          },
+          "state_tolerance": "ignore"
+        }
+      ],
+      "device_attribute_rules": [
+        {
+          "selectors": {
+            "domain": "sensor"
+          },
+          "state_tolerance": 0.2
+        },
+        {
+          "selectors": {
+            "domain": "climate"
+          },
+          "state_tolerance": 0.5
+        },
+        {
+          "selectors": {
+            "device_class": "battery"
+          },
+          "state_tolerance": 2.0
+        },
+        {
+          "selectors": {
+            "device_class": "humidity"
+          },
+          "state_tolerance": 2.0
+        },
+        {
+          "selectors": {
+            "device_class": "atmospheric_pressure"
+          },
+          "state_tolerance": 2.0
+        },
+        {
+          "selectors": {
+            "device_class": "pressure"
+          },
+          "state_tolerance": 2.0
+        },
+        {
+          "selectors": {
+            "model": "TRVZB"
+          },
+          "voltage": { "strategy": "tolerance", "tolerance": 50.0 },
+          "current_temperature": { "strategy": "tolerance", "tolerance": 0.3 },
+          "local_temperature": { "strategy": "tolerance", "tolerance": 0.3 }
+        },
+        {
+          "selectors": {
+            "model": "368308_2010"
+          },
+          "voltage": { "strategy": "tolerance", "tolerance": 50.0 },
+          "current_temperature": { "strategy": "tolerance", "tolerance": 0.3 },
+          "local_temperature": { "strategy": "tolerance", "tolerance": 0.3 }
+        }
+      ]
+    }
+  }
+}

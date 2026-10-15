@@ -1,0 +1,16 @@
+{
+  "comment": "HomeAssistant-SmartCompress Configuration Example. Use configuration_yaml, or define sqlite/postgres below.",
+  "configuration_yaml": "/etc/homeassistant/configuration.yaml",
+  "compression_tiers": [
+    { "older_than_days": 365, "level": "aggressive" },
+    { "older_than_days": 30, "level": "moderate" },
+    { "older_than_days": 1, "level": "conservative" }
+  ],
+  "rules_file": "compression_rules.json",
+  "analysis": {
+    "enabled": false,
+    "top_entities": 20,
+    "top_attributes": 5
+  },
+  "chunk_size": 2000
+}

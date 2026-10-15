@@ -1,0 +1,4 @@
+# Core dependencies (Standard library handles SQLite3 and JSON)
+# Optional dependencies:
+PyYAML>=6.0.0            # Required when reading configuration.yaml / secrets.yaml
+psycopg2-binary>=2.9.0   # Required for PostgreSQL recorder database backends

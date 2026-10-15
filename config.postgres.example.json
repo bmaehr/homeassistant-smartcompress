@@ -1,0 +1,20 @@
+{
+  "db_adapter": "postgres",
+  "compression_tiers": [
+    { "older_than_days": 365, "level": "aggressive" },
+    { "older_than_days": 30, "level": "moderate" },
+    { "older_than_days": 1, "level": "conservative" }
+  ],
+  "rules_file": "compression_rules.json",
+  "analysis": {
+    "enabled": false,
+    "top_entities": 20,
+    "top_attributes": 5
+  },
+  "postgres": {
+    "url": "jdbc:postgresql://127.0.0.1:5432/homeassistant",
+    "user": "homeassistant",
+    "password": "password"
+  },
+  "chunk_size": 2000
+}
