@@ -777,7 +777,8 @@ def run_compression(config=None, rules=None, target_entity=None, limit_entities=
         cursor.execute("SELECT COUNT(*) FROM states")
         total_db_states = cursor.fetchone()[0]
 
-        global_attrs_cache, get_shared_attrs_dict, _, _, attrs_match = build_attribute_helpers(cursor, db_adapter)
+        # Unpack all helpers to allow cache clearing
+        global_attrs_cache, get_shared_attrs_dict, get_filtered_attrs_tuple, get_attribute_diff_keys, attrs_match = build_attribute_helpers(cursor, db_adapter)
 
         metadata_entity_map = get_entity_metadata_map(cursor, db_adapter)
         total_entities_all = len(metadata_entity_map)
@@ -978,6 +979,11 @@ def run_compression(config=None, rules=None, target_entity=None, limit_entities=
                     total_attr_updated,
                     rate,
                 )
+
+            # Prevent memory leaks by flushing caches after processing each entity
+            global_attrs_cache.clear()
+            get_filtered_attrs_tuple.cache_clear()
+            get_attribute_diff_keys.cache_clear()
 
         conn.commit()
         t_comp_elapsed = time_mod.time() - t_comp_start
