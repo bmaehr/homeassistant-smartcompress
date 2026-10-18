@@ -120,6 +120,7 @@ graph LR
   - **Foreign Key Bridging:** Updates `old_state_id` across deleted gaps so state chains remain continuous.
   - **Active Head Protection:** The newest record of an entity is **never deleted**, ensuring Home Assistant's live state machine and subsequent inserts encounter no foreign key or state errors.
   - **PostgreSQL Reference Dissolution:** Automatically sets `old_state_id = NULL` on targets prior to chunked deletion, preventing PostgreSQL `ForeignKeyViolation` errors without requiring database superuser permissions.
+  - **Orphan Attribute Purging (`state_attributes`):** Automatically sweeps and deletes unreferenced shared attribute payloads left behind by deleted states using indexed reference checks (`ix_states_attributes_id`), freeing significant storage otherwise held by dead JSON attribute strings.
 - **Read-Only Simulation & Analysis Modes:**
   - `--simulate` (`-s`): Tests all compression levels against your database, computes actual row savings, and measures real CPU throughput and runtime estimates.
   - `--details` (`-d`): Generates a per-entity breakdown table.
@@ -237,6 +238,8 @@ usage: homeassistant-smartcompress.py [-h] [--level LEVEL] [--entity ENTITY]
                                       [--analyze]
                                       [--top-entities TOP_ENTITIES]
                                       [--top-attributes TOP_ATTRIBUTES]
+                                      [--purge-attributes]
+                                      [--purge-attributes-only]
                                       [config_file]
 
 positional arguments:
@@ -252,6 +255,8 @@ options:
   --limit-entities N    Limit simulation or execution to top N entities by row count
   --top-entities N      Number of top entities to analyze in --analyze mode
   --top-attributes N    Number of top changing attributes to report in --analyze mode
+  --purge-attributes    Perform a full sweep to purge all unreferenced state_attributes after compression
+  --purge-attributes-only Perform a full sweep to purge all unreferenced state_attributes without compressing states
 ```
 
 ---

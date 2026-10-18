@@ -10,6 +10,10 @@ HomeAssistant-SmartCompress is an intelligent database compression, attribute sm
     *   Re-links the `old_state_id` chain of surviving records to eliminate broken pointer references across deleted gaps.
     *   Dissolves incoming foreign keys on PostgreSQL before deletion (`old_state_id = NULL`) to completely prevent `ForeignKeyViolation` errors without requiring superuser permissions.
     *   Protects the most recent record of each entity (`active head`) from being deleted, ensuring Home Assistant's runtime state machine and subsequent state inserts continue without disruption.
+*   **Orphan Attribute Purging (`state_attributes`):**
+    *   Automatically cleans up unreferenced shared attribute payloads from `state_attributes` after compressing `states`.
+    *   Employs candidate-set tracking from deleted states and batch-verifies references against surviving records via the `ix_states_attributes_id` index.
+    *   Supports full orphan sweeps via `--purge-attributes` and standalone attribute purging via `--purge-attributes-only`.
 *   **Multi-Database Support:** Native compatibility with PostgreSQL and SQLite, featuring auto-detection via `configuration.yaml` (including `secrets.yaml` resolution) or dedicated JSON configuration files.
 *   **Caching & Batch Processing:** Employs `lru_cache` for attribute lookups (`state_attributes`) and memory-efficient chunking for DELETE and UPDATE operations.
 *   **Read-Only Simulation & Analysis Modes:**
@@ -96,7 +100,8 @@ flowchart TD
     *   For duplicate sequences with `"last"`/`"max"` strategies, queue attribute updates for the retained state.
     *   Apply `old_state_id` pointer repairs and delete duplicates in chunks per entity to maintain minimal memory usage.
 4.  Commit periodically in entity batches and emit progress metrics.
-5.  Perform final commit and output the compression summary.
+5.  After completing state deletions, evaluate candidate attributes from pruned states against remaining rows and purge unreferenced records from `state_attributes` (plus optional full sweep if `--purge-attributes` is active).
+6.  Perform final commit and output the compression summary (including pruned states and purged attributes).
 
 ## 6. Simulation & Estimator Mode (CLI: `--simulate` / `-s`)
 Recommended first step prior to live compression. Evaluates real reduction potential across all available levels in a single read-only pass with throughput benchmarking:

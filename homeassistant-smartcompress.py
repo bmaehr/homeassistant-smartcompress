@@ -739,7 +739,113 @@ def get_level_for_timestamp(ts, today_midnight_ts, tier_cutoffs):
     return tier_cutoffs[-1]["level"] if tier_cutoffs else None
 
 
-def run_compression(config=None, rules=None, target_entity=None, limit_entities=None):
+def purge_orphaned_attributes(cursor, db_adapter, candidate_ids=None, chunk_size=2000, conn=None):
+    """
+    Purges unreferenced rows from state_attributes.
+    When candidate_ids is provided, performs a fast indexed check against states
+    and deletes unreferenced attributes within that candidate set.
+    When candidate_ids is None, performs a full sweep of all unreferenced rows in state_attributes.
+    Returns the total number of deleted attribute rows.
+    """
+    total_deleted = 0
+
+    if candidate_ids is not None:
+        candidate_list = [aid for aid in set(candidate_ids) if aid is not None]
+        if not candidate_list:
+            return 0
+
+        c_chunk_size = 900 if db_adapter == "sqlite" else min(chunk_size, 5000)
+        for i in range(0, len(candidate_list), c_chunk_size):
+            chunk = candidate_list[i:i + c_chunk_size]
+            if db_adapter == "postgres":
+                cursor.execute("SELECT DISTINCT attributes_id FROM states WHERE attributes_id = ANY(%s)", (chunk,))
+            else:
+                placeholders = ",".join(["?"] * len(chunk))
+                cursor.execute(f"SELECT DISTINCT attributes_id FROM states WHERE attributes_id IN ({placeholders})", chunk)
+
+            still_referenced = {row[0] for row in cursor.fetchall()}
+            orphans = [aid for aid in chunk if aid not in still_referenced]
+
+            if orphans:
+                if db_adapter == "postgres":
+                    cursor.execute("DELETE FROM state_attributes WHERE attributes_id = ANY(%s)", (orphans,))
+                else:
+                    del_placeholders = ",".join(["?"] * len(orphans))
+                    cursor.execute(f"DELETE FROM state_attributes WHERE attributes_id IN ({del_placeholders})", orphans)
+                total_deleted += len(orphans)
+
+        return total_deleted
+
+    # Full sweep mode: delete in efficient batches of 50,000
+    sweep_batch_size = max(chunk_size, 50000)
+    sweep_query = (
+        """
+        DELETE FROM state_attributes
+        WHERE attributes_id IN (
+            SELECT a.attributes_id
+            FROM state_attributes a
+            LEFT JOIN states s ON a.attributes_id = s.attributes_id
+            WHERE s.attributes_id IS NULL
+            LIMIT %s
+        )
+        """
+        if db_adapter == "postgres"
+        else """
+        DELETE FROM state_attributes
+        WHERE attributes_id IN (
+            SELECT a.attributes_id
+            FROM state_attributes a
+            LEFT JOIN states s ON a.attributes_id = s.attributes_id
+            WHERE s.attributes_id IS NULL
+            LIMIT ?
+        )
+        """
+    )
+    t_start = time_mod.time()
+    batch_idx = 0
+    while True:
+        cursor.execute(sweep_query, (sweep_batch_size,))
+        deleted_count = cursor.rowcount
+        if deleted_count is None or deleted_count <= 0:
+            break
+        total_deleted += deleted_count
+        batch_idx += 1
+        if conn:
+            conn.commit()
+        elapsed = max(0.1, time_mod.time() - t_start)
+        logger.info(
+            "Full sweep batch #%d: deleted %d rows (%d total purged so far, %.0f rows/s)...",
+            batch_idx,
+            deleted_count,
+            total_deleted,
+            total_deleted / elapsed,
+        )
+
+    return total_deleted
+
+
+def run_purge_attributes(config=None):
+    if config is None:
+        config = load_config()
+
+    db_adapter = config.get("db_adapter", "postgres").lower()
+    chunk_size = config.get("chunk_size", 2000)
+    logger.info("Starting standalone purge of unreferenced state_attributes. DB Adapter: %s", db_adapter)
+
+    conn = get_connection(config)
+    try:
+        cursor = conn.cursor()
+        t0 = time_mod.time()
+        deleted = purge_orphaned_attributes(cursor, db_adapter, candidate_ids=None, chunk_size=chunk_size, conn=conn)
+        conn.commit()
+        elapsed = time_mod.time() - t0
+        logger.info("Full purge complete. Removed %d orphaned state_attributes in %.2fs.", deleted, elapsed)
+        return deleted
+    finally:
+        conn.close()
+
+
+def run_compression(config=None, rules=None, target_entity=None, limit_entities=None, purge_all_attributes=False):
     if config is None:
         config = load_config()
 
@@ -815,6 +921,7 @@ def run_compression(config=None, rules=None, target_entity=None, limit_entities=
         total_deleted = 0
         total_bridged = 0
         total_attr_updated = 0
+        candidate_attr_ids = set()
         commit_interval_entities = 25
 
         cached_level_configs = {}
@@ -888,6 +995,7 @@ def run_compression(config=None, rules=None, target_entity=None, limit_entities=
                 if is_entity_end or curr_state_strategy == "preserve_endpoints":
                     if len(dup_buffer) >= 2:
                         entity_states_to_delete.extend([d[0] for d in dup_buffer[:-1]])
+                        candidate_attr_ids.update([d[2] for d in dup_buffer[:-1] if d[2]])
                         endpoint = dup_buffer[-1]
                         if endpoint[3] != last_kept_id:
                             entity_old_state_updates.append((last_kept_id, endpoint[0]))
@@ -903,8 +1011,11 @@ def run_compression(config=None, rules=None, target_entity=None, limit_entities=
                         last_kept_attr = endpoint[2]
                 else:
                     entity_states_to_delete.extend([d[0] for d in dup_buffer])
+                    candidate_attr_ids.update([d[2] for d in dup_buffer if d[2]])
                     if has_smart_update and dup_buffer[-1][2] != last_kept_attr:
                         entity_attr_updates.append((dup_buffer[-1][2], last_kept_id))
+                        if last_kept_attr:
+                            candidate_attr_ids.add(last_kept_attr)
                 dup_buffer.clear()
 
             for i in range(1, len(rows)):
@@ -986,17 +1097,36 @@ def run_compression(config=None, rules=None, target_entity=None, limit_entities=
             get_attribute_diff_keys.cache_clear()
 
         conn.commit()
+
+        total_attr_deleted = 0
+        if candidate_attr_ids:
+            logger.info("Purging orphaned state_attributes (evaluating %d candidate attributes)...", len(candidate_attr_ids))
+            total_attr_deleted += purge_orphaned_attributes(
+                cursor, db_adapter, candidate_ids=candidate_attr_ids, chunk_size=chunk_size
+            )
+            conn.commit()
+
+        if purge_all_attributes or config.get("purge_attributes") or config.get("purge_orphaned_attributes"):
+            logger.info("Performing full sweep for any remaining unreferenced state_attributes...")
+            full_sweep_deleted = purge_orphaned_attributes(
+                cursor, db_adapter, candidate_ids=None, chunk_size=chunk_size, conn=conn
+            )
+            conn.commit()
+            total_attr_deleted += full_sweep_deleted
+            logger.info("Full sweep complete. Purged %d unreferenced state_attributes.", full_sweep_deleted)
+
         t_comp_elapsed = time_mod.time() - t_comp_start
         reduction = (total_deleted / total_checked * 100) if total_checked > 0 else 0.0
         overall_rate = (total_checked / t_comp_elapsed) if t_comp_elapsed > 0 else 0.0
 
         logger.info(
-            "Compression complete in %.2fs (%.0f rows/s). Checked: %d | Deleted: %d (%.1f%% reduction) | Bridged: %d | Smart Attrs Updated: %d",
+            "Compression complete in %.2fs (%.0f rows/s). Checked: %d | Deleted states: %d (%.1f%% reduction) | Deleted attributes: %d | Bridged: %d | Smart Attrs Updated: %d",
             t_comp_elapsed,
             overall_rate,
             total_checked,
             total_deleted,
             reduction,
+            total_attr_deleted,
             total_bridged,
             total_attr_updated,
         )
@@ -1700,6 +1830,16 @@ def main():
     parser.add_argument("--analyze", "-a", action="store_true", help="Run in attribute variance analysis mode (read-only)")
     parser.add_argument("--top-entities", type=int, default=None, help="Number of top entities to analyze")
     parser.add_argument("--top-attributes", type=int, default=None, help="Number of top changing attributes to report")
+    parser.add_argument(
+        "--purge-attributes",
+        action="store_true",
+        help="Perform a full sweep to purge all unreferenced state_attributes after compression",
+    )
+    parser.add_argument(
+        "--purge-attributes-only",
+        action="store_true",
+        help="Perform a full sweep to purge all unreferenced state_attributes without compressing states",
+    )
 
     args = parser.parse_args()
 
@@ -1711,7 +1851,9 @@ def main():
 
     sample_limit = args.limit_entities or cfg.get("limit_entities") or cfg.get("sample_size")
 
-    if args.simulate or cfg.get("simulation") or cfg.get("simulate"):
+    if args.purge_attributes_only:
+        run_purge_attributes(config=cfg)
+    elif args.simulate or cfg.get("simulation") or cfg.get("simulate"):
         run_simulation(
             config=cfg,
             show_details=args.details or cfg.get("detailed", False),
@@ -1730,6 +1872,7 @@ def main():
             config=cfg,
             target_entity=args.entity,
             limit_entities=sample_limit,
+            purge_all_attributes=args.purge_attributes,
         )
 
 
